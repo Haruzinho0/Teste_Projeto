@@ -49,9 +49,10 @@ Route::get('/alunos/{aluno}', [AlunoController::class, 'show'])->name('alunos.sh
 
 
 Route::get('/alunos', [AlunoController::class, 'index'])->name('alunos.index');
+
 Route::get('/alunos/search', [AlunoController::class, 'search'])->name('alunos.search');
 
-Route::delete('/alunos/{id}', [AlunoController::class, 'destroy'])->name('alunos.destroy');
+Route::delete('/alunos/{id}', [AlunoController::class, 'remove'])->name('alunos.remove');
 
 
 require __DIR__.'/auth.php';

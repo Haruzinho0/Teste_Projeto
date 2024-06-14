@@ -2,43 +2,63 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Aluno;
-use App\Models\Status;
 use App\Rules\CPF;
+use Carbon\Carbon;
 
 class AlunoController extends Controller
 {
+
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        // Verifique se há um termo de pesquisa enviado via POST
-        if ($request->has('termo')) {
-            $termo = $request->input('termo');
-            
-            // Filtrar os alunos com base no termo de pesquisa e ordená-los por ordem alfabética
-            $alunos = Aluno::where('nome', 'LIKE', "%$termo%")
-                           ->whereHas('status', function ($query) {
-                               $query->where('descricao', '!=', 'excluido');
-                           })
-                           ->orderBy('nome')
-                           ->get();
-        } else {
-            // Se não houver termo de pesquisa, obtenha todos os alunos ordenados por ordem alfabética
-            $alunos = Aluno::whereHas('status', function ($query) {
-                                $query->where('descricao', '!=', 'excluido');
-                            })
-                            ->orderBy('nome')
-                            ->get();
-        }
-        
-        // Renderize a view 'alunos' e passe os resultados da pesquisa
-        return view('alunos', compact('alunos'));
-    }
+        $query = Aluno::query();
 
+        // Aplicar filtro de termo de pesquisa por nome
+        if ($request->has('termo')) {
+            $termo = strtolower($request->input('termo'));
+            $query->where(DB::raw('LOWER(nome)'), 'LIKE', "%{$termo}%");
+        }
+
+        // Aplicar filtro de pesquisa por CPF
+        if ($request->has('cpf')) {
+            $cpf = $request->input('cpf');
+            $query->where('cpf', 'LIKE', "%{$cpf}%");
+        }
+
+        // Aplicar filtro de status
+        if ($request->has('status')) {
+            $status = $request->input('status');
+
+            // Se 'Removido' estiver presente nos filtros, não filtramos por status para que os alunos removidos sejam incluídos na lista
+            if (!in_array('Removido', $status)) {
+                $query->whereIn('status', $status);
+            }
+        }
+
+        // Filtrar alunos removidos apenas se 'Removido' estiver presente nos filtros
+        if (!in_array('Removido', $request->input('status', []))) {
+            $query->where('status', '!=', 'Removido');
+        }
+
+        $query->with('status');
+
+        // Obter os alunos com base nos filtros
+        $alunos = $query->orderBy('nome')->get();
+
+        $alunos->each(function ($aluno) {
+            $aluno->idade = $aluno->data_nascimento ? Carbon::parse($aluno->data_nascimento)->age : 'N/A';
+        });
+
+        // Renderize a view 'alunos' e passe os resultados da pesquisa
+        return view('alunos.index', compact('alunos'));
+    }
     /**
      * Show the form for creating a new resource.
      */
@@ -55,7 +75,7 @@ class AlunoController extends Controller
         // Validação dos dados do formulário
         $request->validate([
             'nome' => 'required|string|max:255',
-            'cpf' => ['required', 'string', new CPF],
+            'cpf' => ['required', 'string', 'unique:alunos,cpf', new CPF],
             'rg' => 'nullable|string|max:255',
             'telefone' => 'nullable|string|max:20',
             'sexo' => 'required|in:M,F,Outro',
@@ -64,20 +84,11 @@ class AlunoController extends Controller
         ], [
             'nome.required' => 'O campo nome é obrigatório.',
             'cpf.required' => 'O campo CPF é obrigatório.',
+            'cpf.unique' => 'Já existe uma conta cadastrada com este CPF.',
             'sexo.required' => 'O campo sexo é obrigatório.',
             'data_nascimento.required' => 'O campo data de nascimento é obrigatório.',
         ]);
 
-        // Buscar o status 'inativo'
-        $statusInativo = Status::where('descricao', 'inativo')->first();
-
-        // Verificar se existe um aluno com o mesmo CPF e se ele não está excluído
-        $alunoExistente = Aluno::where('cpf', $request->cpf)->first();
-
-if ($alunoExistente) {
-    // Verificar se o aluno existe e está marcado como excluído
-    if ($alunoExistente->status_id === 4) {
-        // Permitir a criação de um novo aluno
         Aluno::create([
             'nome' => $request->input('nome'),
             'cpf' => $request->input('cpf'),
@@ -86,28 +97,10 @@ if ($alunoExistente) {
             'sexo' => $request->input('sexo'),
             'data_nascimento' => $request->input('data_nascimento'),
             'endereco' => $request->input('endereco'),
-            'status_id' => $statusInativo->id,
         ]);
-        return redirect()->route('alunos.index')->with('success', 'Aluno cadastrado com sucesso.');
-    } else {
-        // Se o aluno existe e não está marcado como excluído, exibir um erro
-        return back()->withErrors(['cpf' => 'Já existe uma conta cadastrada com este CPF e não está excluída.']);
-    }
 
-} else {
-    // Se não houver aluno com o mesmo CPF, criar o novo aluno normalmente
-    Aluno::create([
-        'nome' => $request->input('nome'),
-        'cpf' => $request->input('cpf'),
-        'rg' => $request->input('rg'),
-        'telefone' => $request->input('telefone'),
-        'sexo' => $request->input('sexo'),
-        'data_nascimento' => $request->input('data_nascimento'),
-        'endereco' => $request->input('endereco'),
-        'status_id' => $statusInativo->id,
-    ]);
-    return redirect()->route('alunos.index')->with('success', 'Aluno cadastrado com sucesso.');
-    }
+        // Redirecionamento após o cadastro
+        return redirect()->route('alunos.index')->with('success', 'Aluno cadastrado com sucesso.');
     }
 
     /**
@@ -133,12 +126,19 @@ if ($alunoExistente) {
     {
         $request->validate([
             'nome' => 'required|string|max:255',
-            'cpf' => 'required|string|max:14|unique:alunos,cpf,' . $id,
+            'cpf' => ['required', new CPF],
             'rg' => 'nullable|string|max:255',
             'telefone' => 'nullable|string|max:20',
             'sexo' => 'required|in:M,F,Outro',
             'data_nascimento' => 'required|date',
             'endereco' => 'nullable|string',
+            'status' => 'required|in:Ativo,Inativo,Pendente,Removido', 
+        ], [
+            'nome.required' => 'O campo nome é obrigatório.',
+            'cpf.required' => 'O campo CPF é obrigatório.',
+            'cpf.unique' => 'Já existe uma conta cadastrada com este CPF.',
+            'sexo.required' => 'O campo sexo é obrigatório.',
+            'data_nascimento.required' => 'O campo data de nascimento é obrigatório.',
         ]);
 
         $aluno = Aluno::findOrFail($id);
@@ -149,12 +149,13 @@ if ($alunoExistente) {
         $aluno->rg = $request->input('rg');
         $aluno->telefone = $request->input('telefone');
         $aluno->sexo = $request->input('sexo');
-        $aluno->data_nascimento = $request->input('data_nascimento');
+        $aluno->data_nascimento = Carbon::parse($request->input('data_nascimento'));
         $aluno->endereco = $request->input('endereco');
-        // Atualize os outros campos, se necessário
+        $aluno->status = $request->input('status'); // Atualiza o status
 
         // Salva as alterações no banco de dados
         $aluno->save();
+
         return redirect()->route('alunos.show', $aluno->id)->with('success', 'Perfil do aluno atualizado com sucesso.');
     }
 
@@ -163,32 +164,41 @@ if ($alunoExistente) {
      */
     public function destroy($id)
     {
+        $aluno = Aluno::findOrFail($id);
+
+        $aluno->status = 'Removido';
+        $aluno->save();
+
+        // Redirecione de volta para a lista de alunos
+        return redirect()->route('alunos.index')->with('success', 'Aluno removido com sucesso.');
+        // Lógica para excluir o aluno com o ID fornecido
+    }
+
+
+    public function remove($id)
+    {
         // Encontre o aluno pelo ID
         $aluno = Aluno::findOrFail($id);
-        
-        // Buscar o status 'excluido'
-        $statusExcluido = Status::where('descricao', 'excluido')->first();
-        
-        // Atualizar o status do aluno para 'excluido'
-        $aluno->status_id = $statusExcluido->id;
+
+        $aluno->status = 'Removido';
         $aluno->save();
-        
+
         // Redirecione de volta para a lista de alunos
-        return redirect()->route('alunos.index')->with('success', 'Aluno excluído com sucesso.');
+        return redirect()->route('alunos.index')->with('success', 'Aluno removido com sucesso.');
     }
+
 
     public function search(Request $request)
     {
         $termo = $request->input('termo');
-    
-        // Realize a pesquisa de alunos com base no termo de pesquisa
-        $alunos = Aluno::where('nome', 'LIKE', "%{$termo}%")
-                       ->whereHas('status', function ($query) {
-                           $query->where('descricao', '!=', 'excluido');
-                       })
-                       ->get();
-    
+
+        // Converter o termo de pesquisa para minúsculas
+        $termoMinusculo = strtolower($termo);
+
+        // Realize a pesquisa de alunos com base no termo de pesquisa em minúsculas
+        $alunos = Aluno::whereRaw('LOWER(nome) LIKE ?', ["%{$termoMinusculo}%"])->get();
+
         // Carregue a visão parcial com os resultados da pesquisa
-        return view('alunos.index', compact('alunos'));
+        return view('alunos.parcial.lista_alunos', compact('alunos'));
     }
 }

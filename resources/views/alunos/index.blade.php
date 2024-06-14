@@ -1,54 +1,91 @@
-<!-- resources/views/alunos/index.blade.php -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Alunos</title>
-    <link href="{{ asset('css/alunos.css') }}" rel="stylesheet">
-</head>
-<body>
-    <header>
-        <h1>Lista de Alunos</h1>
-        <nav>
-            <ul>
-                @include('components.navbar')
-            </ul>
-        </nav>
-    </header>
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-yellow-500 dark:text-yellow-500 leading-tight">
+            {{ __('Lista de Alunos') }}
+        </h2>
+    </x-slot>
 
-    <div class="container">
-        <h2>Buscar Aluno</h2>
-        <form id="formPesquisaAluno" method="GET" action="{{ route('alunos.index') }}">
-            <input type="text" id="termoPesquisa" name="termo" placeholder="Pesquisar aluno" value="{{ Request::input('termo') }}">
-            <button type="submit">Pesquisar</button>
-            @if (Request::has('termo'))
-                <a href="{{ route('alunos.index') }}" class="limpar-pesquisa">Limpar Pesquisa</a>
-            @endif
-        </form>
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-[#2d2d2d] overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-yellow-500 dark:text-yellow-500">
+                    <div class="pesquisar">
+                        <form action="{{ route('alunos.index') }}" method="GET" class="search-form">
+                            <div class="status-filters">
+                                <input type="checkbox" id="ativo" name="status[]" value="Ativo" {{ in_array('Ativo', Request::input('status', [])) ? 'checked' : '' }} class="status-checkbox">
+                                <label for="ativo" class="status-label">Ativo</label>
+                                <input type="checkbox" id="inativo" name="status[]" value="Inativo" {{ in_array('Inativo', Request::input('status', [])) ? 'checked' : '' }}
+                                    class="status-checkbox">
+                                <label for="inativo" class="status-label">Inativo</label>
+                                <input type="checkbox" id="pendente" name="status[]" value="Pendente" {{ in_array('Pendente', Request::input('status', [])) ? 'checked' : '' }}
+                                    class="status-checkbox">
+                                <label for="pendente" class="status-label">Pendente</label>
+                                <input type="checkbox" id="removido" name="status[]" value="Removido" {{ in_array('Removido', Request::input('status', [])) ? 'checked' : '' }}
+                                    class="status-checkbox">
+                                <label for="removido" class="status-label">Removido</label>
+                            </div>
+                            <div class="pesquisar">
+    <input type="text" id="termoPesquisa" name="termo" placeholder="Pesquisar por nome" value="{{ Request::input('termo') }}" class="search-box text-black">
+    <input type="text" id="cpfPesquisa" name="cpf" placeholder="Pesquisar por CPF" value="{{ Request::input('cpf') }}" class="search-box text-black">
+</div>
+                            <div class="form-actions">
+                                <button type="submit" class="button-pesquisar">Pesquisar</button>
+                                <a href="{{ route('alunos.index') }}" class="limpar-pesquisa">Limpar Pesquisa</a>
+                            </div>
+                        </form>
+                    </div>
 
-        <!-- Verifica se existem resultados da pesquisa -->
-        @if(isset($alunos) && count($alunos) > 0)
-            <div id="listaAlunosContainer">
-                <h2>Lista de Alunos</h2>
-                <ul>
-                    @foreach($alunos as $aluno)
-                        <div class="aluno">
-                            <a href="{{ route('alunos.show', $aluno->id) }}">
-                                <div class="aluno-info">
-                                    <p>Nome: {{ $aluno->nome }}</p>
-                                    <p>Idade: {{ $aluno->idade }}</p> <!-- Substitua 'idade' pelo atributo correto -->
-                                    <p>Sexo: {{ $aluno->sexo }}</p>
-                                    <p>Status: {{ $aluno->status }}</p> <!-- Exibe o status do aluno -->
-                                </div>
-                            </a>
+                    @if(isset($alunos) && count($alunos) > 0)
+                        <div id="listaAlunosContainer">
+                            <h2 class="header-yellow">Lista de Alunos</h2>
+                            <ul>
+                                @foreach($alunos as $aluno)
+                                    <div class="aluno {{ $aluno->status == 'Removido' ? 'aluno-removido' : '' }}">
+                                        <a href="{{ route('alunos.show', $aluno->id) }}">
+                                        
+                                            <div class="aluno-info">
+                                                <p class="text-yellow">
+                                                    Nome: {{ $aluno->nome }} Idade: {{ $aluno->idade }}
+                                                    Sexo: {{ $aluno->sexo }} Status: {{ $aluno->status }}
+                                                </p>
+                                            </div>
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </ul>
                         </div>
-                    @endforeach
-                </ul>
+                    @else
+                        <p class="text-yellow">Nenhum aluno encontrado.</p>
+                    @endif
+                </div>
             </div>
-        @else
-            <p>Nenhum aluno encontrado.</p>
-        @endif
+        </div>
     </div>
-</body>
-</html>
+
+    <!-- Script para formatação de campos e validações -->
+    <script src="https://cdn.jsdelivr.net/npm/cleave.js@1.6.0/dist/cleave.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Aplica Cleave.js ao campo de CPF para formatar automaticamente
+            new Cleave('#cpfPesquisa', {
+                delimiters: ['.', '.', '-'],
+                blocks: [3, 3, 3, 2],
+                numericOnly: true
+            });
+
+            // Adiciona evento keypress para o campo de RG (apenas números)
+            document.getElementById('rg').addEventListener('keypress', function (event) {
+                if (event.charCode < 48 || event.charCode > 57) {
+                    event.preventDefault();
+                }
+            });
+
+            // Adiciona evento keypress para o campo de telefone (apenas números e caracteres especiais permitidos)
+            document.getElementById('telefone').addEventListener('keypress', function (event) {
+                if ((event.charCode < 48 || event.charCode > 57) && event.charCode !== 32 && event.charCode !== 40 && event.charCode !== 41 && event.charCode !== 45 && event.charCode !== 43) {
+                    event.preventDefault();
+                }
+            });
+        });
+    </script>
+</x-app-layout>

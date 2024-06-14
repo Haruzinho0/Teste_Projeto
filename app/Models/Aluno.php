@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Carbon\Carbon;
@@ -16,16 +17,17 @@ class Aluno extends Model
     protected $dates = ['data_nascimento'];
 
     public function getIdadeAttribute()
-{
-    // Verifica se data_nascimento é uma instância de Carbon
-    if ($this->data_nascimento instanceof Carbon) {
+    {
+        // Verifica se data_nascimento é uma string e a converte para um objeto Carbon
+        if (is_string($this->data_nascimento)) {
+            $this->data_nascimento = Carbon::parse($this->data_nascimento);
+        }
         // Retorna a idade com base na data de nascimento
-        return $this->data_nascimento->age;
+        return optional($this->data_nascimento)->age;
     }
-    return null; // Retorna null se a data de nascimento não for válida
-}
+
     public function status()
     {
-        return $this->belongsTo(Status::class);
+        return $this->belongsTo(Status::class, 'status_id');
     }
 }
