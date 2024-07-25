@@ -56,7 +56,7 @@ select:focus {
 }
 
 .actions button {
-   
+
         padding: 12px 24px;
         margin-right: 10px;
         margin-bottom: 10px;
@@ -202,4 +202,14 @@ input[type="checkbox"] {
 
 .button-salvar:hover {
     background-color: #a05645;
+}
+
+.aluno-info {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+}
+
+.aluno-info p {
+    margin: 0;
 }

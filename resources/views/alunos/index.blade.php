@@ -12,22 +12,15 @@
                     <div class="pesquisar">
                         <form action="{{ route('alunos.index') }}" method="GET" class="search-form">
                             <div class="status-filters">
-                                <input type="checkbox" id="ativo" name="status[]" value="Ativo" {{ in_array('Ativo', Request::input('status', [])) ? 'checked' : '' }} class="status-checkbox">
-                                <label for="ativo" class="status-label">Ativo</label>
-                                <input type="checkbox" id="inativo" name="status[]" value="Inativo" {{ in_array('Inativo', Request::input('status', [])) ? 'checked' : '' }}
-                                    class="status-checkbox">
-                                <label for="inativo" class="status-label">Inativo</label>
-                                <input type="checkbox" id="pendente" name="status[]" value="Pendente" {{ in_array('Pendente', Request::input('status', [])) ? 'checked' : '' }}
-                                    class="status-checkbox">
-                                <label for="pendente" class="status-label">Pendente</label>
-                                <input type="checkbox" id="removido" name="status[]" value="Removido" {{ in_array('Removido', Request::input('status', [])) ? 'checked' : '' }}
-                                    class="status-checkbox">
-                                <label for="removido" class="status-label">Removido</label>
+                                @foreach(['Ativo', 'Inativo', 'Pendente', 'Removido'] as $status)
+                                    <input type="checkbox" id="{{ strtolower($status) }}" name="status[]" value="{{ $status }}" {{ in_array($status, Request::input('status', [])) ? 'checked' : '' }} class="status-checkbox">
+                                    <label for="{{ strtolower($status) }}" class="status-label">{{ $status }}</label>
+                                @endforeach
                             </div>
                             <div class="pesquisar">
-    <input type="text" id="termoPesquisa" name="termo" placeholder="Pesquisar por nome" value="{{ Request::input('termo') }}" class="search-box text-black">
-    <input type="text" id="cpfPesquisa" name="cpf" placeholder="Pesquisar por CPF" value="{{ Request::input('cpf') }}" class="search-box text-black">
-</div>
+                                <input type="text" id="termoPesquisa" name="termo" placeholder="Pesquisar por nome" value="{{ Request::input('termo') }}" class="search-box text-black">
+                                <input type="text" id="cpfPesquisa" name="cpf" placeholder="Pesquisar por CPF" value="{{ Request::input('cpf') }}" class="search-box text-black">
+                            </div>
                             <div class="form-actions">
                                 <button type="submit" class="button-pesquisar">Pesquisar</button>
                                 <a href="{{ route('alunos.index') }}" class="limpar-pesquisa">Limpar Pesquisa</a>
@@ -35,24 +28,33 @@
                         </form>
                     </div>
 
-                    @if(isset($alunos) && count($alunos) > 0)
+                    @if(isset($alunos) && $alunos->count() > 0)
                         <div id="listaAlunosContainer">
                             <h2 class="header-yellow">Lista de Alunos</h2>
-                            <ul>
-                                @foreach($alunos as $aluno)
-                                    <div class="aluno {{ $aluno->status == 'Removido' ? 'aluno-removido' : '' }}">
-                                        <a href="{{ route('alunos.show', $aluno->id) }}">
-                                        
-                                            <div class="aluno-info">
-                                                <p class="text-yellow">
-                                                    Nome: {{ $aluno->nome }} Idade: {{ $aluno->idade }}
-                                                    Sexo: {{ $aluno->sexo }} Status: {{ $aluno->status }}
-                                                </p>
-                                            </div>
-                                        </a>
-                                    </div>
-                                @endforeach
-                            </ul>
+                            <table class="min-w-full bg-[#2d2d2d]">
+                                <thead>
+                                    <tr>
+                                        <th class="px-5 py-3 text-left text-xs text-yellow-500 uppercase tracking-wider">Nome</th>
+                                        <th class="px-5 py-3 text-left text-xs text-yellow-500 uppercase tracking-wider">Idade</th>
+                                        <th class="px-5 py-3 text-left text-xs text-yellow-500 uppercase tracking-wider">Sexo</th>
+                                        <th class="px-5 py-3 text-left text-xs text-yellow-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-5 py-3 text-left text-xs text-yellow-500 uppercase tracking-wider">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($alunos as $aluno)
+                                        <tr class="bg-[#3d3d3d] {{ $aluno->status == 'Removido' ? 'aluno-removido' : '' }}">
+                                            <td class="px-5 py-4 text-yellow-500 whitespace-nowrap">{{ $aluno->nome }}</td>
+                                            <td class="px-5 py-4 text-yellow-500 whitespace-nowrap">{{ $aluno->idade }}</td>
+                                            <td class="px-5 py-4 text-yellow-500 whitespace-nowrap">{{ $aluno->sexo }}</td>
+                                            <td class="px-5 py-4 text-yellow-500 whitespace-nowrap">{{ $aluno->status }}</td>
+                                            <td class="px-5 py-4 text-yellow-500 whitespace-nowrap">
+                                                <a href="{{ route('alunos.show', $aluno->id) }}" class="text-blue-500 hover:text-blue-700">Ver</a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
                     @else
                         <p class="text-yellow">Nenhum aluno encontrado.</p>
@@ -66,25 +68,10 @@
     <script src="https://cdn.jsdelivr.net/npm/cleave.js@1.6.0/dist/cleave.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Aplica Cleave.js ao campo de CPF para formatar automaticamente
             new Cleave('#cpfPesquisa', {
                 delimiters: ['.', '.', '-'],
                 blocks: [3, 3, 3, 2],
                 numericOnly: true
-            });
-
-            // Adiciona evento keypress para o campo de RG (apenas números)
-            document.getElementById('rg').addEventListener('keypress', function (event) {
-                if (event.charCode < 48 || event.charCode > 57) {
-                    event.preventDefault();
-                }
-            });
-
-            // Adiciona evento keypress para o campo de telefone (apenas números e caracteres especiais permitidos)
-            document.getElementById('telefone').addEventListener('keypress', function (event) {
-                if ((event.charCode < 48 || event.charCode > 57) && event.charCode !== 32 && event.charCode !== 40 && event.charCode !== 41 && event.charCode !== 45 && event.charCode !== 43) {
-                    event.preventDefault();
-                }
             });
         });
     </script>

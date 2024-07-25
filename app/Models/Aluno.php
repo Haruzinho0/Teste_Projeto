@@ -30,4 +30,9 @@ class Aluno extends Model
     {
         return $this->belongsTo(Status::class, 'status_id');
     }
+
+    public function avaliacoes()
+{
+    return $this->hasMany(Avaliacao::class);
+}
 }

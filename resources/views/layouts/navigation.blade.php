@@ -23,6 +23,12 @@
                     <x-nav-link :href="route('alunos.index')" :active="request()->routeIs('alunos.index')" class="text-yellow-500 hover:text-yellow-400">
                         {{ __('Alunos') }}
                     </x-nav-link>
+
+                    <x-nav-link :href="route('exercicios.index')" :active="request()->routeIs('exercicios.index')" class="text-yellow-500 hover:text-yellow-400">
+                        {{ __('Exercicios') }}
+                    </x-nav-link>
+
+                    
                 </div>
             </div>
 
